@@ -82,6 +82,7 @@ def wechat():
         msg = parse_message(msg)
         if msg.type == 'image':
             problem = process_image(msg.image)
+            logging.info(problem['question'])
             
             result_arthur, reverse = RANKER.do_rank_answers(problem)
             
@@ -107,12 +108,17 @@ def process_image(image_url):
     logging.info("image_url:%s" % (image_url))
     
     img = cv2.imdecode(np.asarray(bytearray(urllib.urlopen(image_url).read()), dtype='uint8'), cv2.IMREAD_GRAYSCALE)
-    ret, img =cv2.threshold(img, 215, 255, cv2.THRESH_BINARY)
+    ret, img =cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
     
     ocr_client = AipOcr(OCR_APPID, OCR_API_KEY, OCR_SECRET_KEY)
+#    with open('abc.jpg', 'w') as abc:
+#        abc.write(cv2.imencode('.jpg', img)[1].tostring())
     result = ocr_client.general(cv2.imencode('.jpg', img)[1].tostring(), { 'probability': 'true' })
     
+#    print >> sys.stderr, json.dumps(result, ensure_ascii=False)
     words_result = filter(lambda x: x['location']['top'] > 300 and x['location']['top'] < 1400, result['words_result'])
+    
+#    print >> sys.stderr, json.dumps(words_result, ensure_ascii=False)
 
     question = ''.join([word['words'] for word in words_result[:-3]]).split('.')[-1]
     answers = [word['words'].split('.')[-1] for word in words_result[-3:]]
@@ -128,7 +134,7 @@ def process_image(image_url):
     
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,  
+    logging.basicConfig(level=logging.INFO,  
                         format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',  
                         datefmt='%a, %d %b %Y %H:%M:%S')
     parser = argparse.ArgumentParser()
