@@ -111,14 +111,14 @@ def process_image(image_url):
     ret, img =cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
     
     ocr_client = AipOcr(OCR_APPID, OCR_API_KEY, OCR_SECRET_KEY)
-#    with open('abc.jpg', 'w') as abc:
-#        abc.write(cv2.imencode('.jpg', img)[1].tostring())
+    with open('abc.jpg', 'w') as abc:
+        abc.write(cv2.imencode('.jpg', img)[1].tostring())
     result = ocr_client.general(cv2.imencode('.jpg', img)[1].tostring(), { 'probability': 'true' })
     
-#    print >> sys.stderr, json.dumps(result, ensure_ascii=False)
-    words_result = filter(lambda x: x['location']['top'] > 300 and x['location']['top'] < 1400, result['words_result'])
+#    print >> sys.stderr, result
+    words_result = filter(lambda x: x['location']['top'] > 300 and x['location']['top'] < 1400 and x['location']['height'] > 40, result['words_result'])
     
-#    print >> sys.stderr, json.dumps(words_result, ensure_ascii=False)
+#    print >> sys.stderr, words_result
 
     question = ''.join([word['words'] for word in words_result[:-3]]).split('.')[-1]
     answers = [word['words'].split('.')[-1] for word in words_result[-3:]]
@@ -139,8 +139,8 @@ if __name__ == '__main__':
                         datefmt='%a, %d %b %Y %H:%M:%S')
     parser = argparse.ArgumentParser()
     parser.register("type", "bool", lambda v: v.lower() == "true")
-    parser.add_argument("--precog", type=str, default="Baidu",
-                        help="Agatha | Arthur | Dash | Baidu for different precogs(SearchEngine for now.).")
+    parser.add_argument("--precog", type=str, default="Dash2",
+                        help="Agatha | Arthur | Dash | Dash2 for different precogs(SearchEngine for now.).")
     parser.add_argument("--debug", type="bool", default=False,
                         help="Whether to enable debug mode.")
     FLAGS, unparsed = parser.parse_known_args()
