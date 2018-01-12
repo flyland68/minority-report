@@ -11,6 +11,7 @@ Authors: Snakecon (snakecon@gmail.com)
 """
 import io
 
+import re
 from PIL import Image
 from aip import AipOcr
 
@@ -36,7 +37,7 @@ class BaiduClondOcr(object):
 
         corp_img = im.crop(conf.BBOX)
 
-        corp_img.save('q_corp.png')
+        corp_img.save(self.flags.precog + '_corp.png')
         corp_img.save(img_bytes, format='PNG')
 
         scene = self.recognizer.recogize(corp_img)
@@ -56,7 +57,9 @@ class BaiduClondOcr(object):
         del lines[-1]
         del lines[-1]
 
-        question = u" ".join([line['words'].strip() for line in lines]).encode('utf-8')
+        question = u"".join([line['words'].strip() for line in lines]).encode('utf-8')
+
+        question = re.sub(r'^\d+\.', "", question)
 
         question_block = {
             "question": question,
@@ -65,7 +68,7 @@ class BaiduClondOcr(object):
             "ans_3": ans_3.replace('c.', ''),
         }
 
-        if len(lines) > 3:
+        if len(lines) > 3 or question.startswith('时间到'):
             raise PipelineException('Invalid ocr', question_block)
 
         self.print_questions(question_block)

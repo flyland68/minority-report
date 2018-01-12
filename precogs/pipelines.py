@@ -14,6 +14,7 @@ from precogs.algorithms import BasicRanker
 from precogs.drivers import AndroidDriver
 from precogs.exceptions import PipelineException
 from precogs.ocrs import BaiduClondOcr
+from precogs.puzzles import Puzzle
 from precogs.scenes import HistSceneRecognizer
 
 __author__ = 'snakecon@gmail.com'
@@ -27,10 +28,11 @@ class Pipeline(object):
         self.driver = AndroidDriver(flags)
         self.ocr = BaiduClondOcr(flags)
         self.recognizer = HistSceneRecognizer(flags)
+        self.puzzle = Puzzle(flags)
 
     def run(self):
         try:
-            filename = 'q.png'
+            filename = self.flags.precog + '.png'
             self.driver.screenshot(filename)
 
             questions = self.ocr.ocr(filename)
@@ -39,6 +41,9 @@ class Pipeline(object):
 
             if self.flags.touch:
                 self.driver.touch_button(result_index)
+
+            if self.flags.puzzle:
+                self.puzzle.save(questions)
         except PipelineException as e:
             print e.message
             if e.payload is not None:
