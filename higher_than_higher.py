@@ -111,8 +111,8 @@ def process_image(image_url):
     ret, img =cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
     
     ocr_client = AipOcr(OCR_APPID, OCR_API_KEY, OCR_SECRET_KEY)
-    with open('abc.jpg', 'w') as abc:
-        abc.write(cv2.imencode('.jpg', img)[1].tostring())
+#    with open('abc.jpg', 'w') as abc:
+#        abc.write(cv2.imencode('.jpg', img)[1].tostring())
     result = ocr_client.general(cv2.imencode('.jpg', img)[1].tostring(), { 'probability': 'true' })
     
 #    print >> sys.stderr, result
