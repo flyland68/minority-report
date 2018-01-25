@@ -15,6 +15,8 @@ from wechatpy.exceptions import (
     InvalidAppIdException,
 )
 from wechatpy.crypto import WeChatCrypto
+from wechatpy import WeChatClient
+from wechatpy.client.api import WeChatMedia
 
 import sys
 import os
@@ -28,6 +30,7 @@ import re
 import cv2
 import numpy as np
 from aip import AipOcr
+from aip import AipSpeech
 from zhon import hanzi
 
 from precogs import algorithms
@@ -37,10 +40,15 @@ __author__ = u'lufei@baidu.com'
 WECHAT_TOKEN = os.getenv('WECHAT_TOKEN', 'wechat_token')
 WECHAT_AES_KEY = os.getenv('WECHAT_AES_KEY', '')
 WECHAT_APPID = os.getenv('WECHAT_APPID', '')
+WECHAT_SECRET_KEY = os.getenv('WECHAT_SECRET_KEY', '')
 
 OCR_APPID = os.getenv('OCR_APPID', '')
 OCR_API_KEY = os.getenv('OCR_API_KEY', '')
 OCR_SECRET_KEY = os.getenv('OCR_SECRET_KEY', '')
+
+SPEECH_APPID = os.getenv('SPEECH_APPID', '')
+SPEECH_API_KEY = os.getenv('SPEECH_API_KEY', '')
+SPEECH_SECRET_KEY = os.getenv('SPEECH_SECRET_KEY', '')
 
 app = Flask(__name__)
 
@@ -89,6 +97,14 @@ def wechat():
             message = ' | '.join(['%d-%s' % (r['count'], r['ans']) for r in result_arthur])
             logging.info(message)
             reply = create_reply(message, msg)
+        elif msg.type == 'voice':
+            logging.info(msg)
+            media_id = msg.media_id
+            client = WeChatClient(WECHAT_APPID, WECHAT_SECRET_KEY)
+            wechat_media = WeChatMedia(client)
+            url = wechat_media.get_url(media_id)
+            message = process_voice(url)
+            reply = create_reply(message, msg)
         else:
             reply = create_reply('Sorry, can not handle this for now', msg)
         
@@ -103,6 +119,15 @@ def wechat():
         import traceback
         traceback.print_exc()
 
+
+def process_voice(voice_url):
+    logging.info("voice_url:%s" % voice_url)
+    voice = bytearray(urllib.urlopen(voice_url).read())
+    asr_client = AipSpeech(SPEECH_APPID, SPEECH_API_KEY, SPEECH_SECRET_KEY)
+    response = asr_client.asr(voice, 'amr', 8000)
+    return '\n'.join(response['result'])
+    
+
     
 def process_image(image_url):
     logging.info("image_url:%s" % (image_url))
@@ -111,11 +136,12 @@ def process_image(image_url):
     ret, img =cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
     
     ocr_client = AipOcr(OCR_APPID, OCR_API_KEY, OCR_SECRET_KEY)
-#    with open('abc.jpg', 'w') as abc:
-#        abc.write(cv2.imencode('.jpg', img)[1].tostring())
+    import time
+    with open('img/%f.jpg' % time.time(), 'w') as abc:
+        abc.write(cv2.imencode('.jpg', img)[1].tostring())
     result = ocr_client.general(cv2.imencode('.jpg', img)[1].tostring(), { 'probability': 'true' })
     
-#    print >> sys.stderr, result
+    print >> sys.stderr, result
     words_result = filter(lambda x: x['location']['top'] > 300 and x['location']['top'] < 1400 and x['location']['height'] > 40, result['words_result'])
     
 #    print >> sys.stderr, words_result
