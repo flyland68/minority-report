@@ -7,7 +7,7 @@ The WeChat Server.
 Authors: Alex Lu (flyland_lf@hotmail.com)
 """
 
-from flask import Flask, request, abort, render_template
+from flask import Flask, request, abort, render_template, jsonify
 from wechatpy import parse_message, create_reply
 from wechatpy.utils import check_signature
 from wechatpy.exceptions import (
@@ -34,6 +34,8 @@ from aip import AipSpeech
 from zhon import hanzi
 
 from precogs import algorithms
+
+import aai
             
 __author__ = u'lufei@baidu.com'
 
@@ -54,6 +56,15 @@ app = Flask(__name__)
 
 FLAGS = None
 RANKER = None
+
+AAI_CACHE = []
+
+@app.route('/aai_callback', methods=['POST'])
+def aai_callback():
+    logging.info(request.form)
+    AAI_CACHE.append(u'TencentAAI: ' + request.form['text'])
+    return jsonify({ "code" : 0, "message" : u"成功" })
+    
 
 @app.route('/wechat', methods=['GET', 'POST'])
 def wechat():
@@ -103,10 +114,25 @@ def wechat():
             client = WeChatClient(WECHAT_APPID, WECHAT_SECRET_KEY)
             wechat_media = WeChatMedia(client)
             url = wechat_media.get_url(media_id)
-            message = process_voice(url)
+            # Call baidu's asr
+            baidu_message = process_voice(url)
+            
+            # Call xf's asr
+            xunfei_message = process_voice_xf(url)
+            
+            message = '\n'.join([baidu_message, xunfei_message])
+
             reply = create_reply(message, msg)
+            
+#            # Call tencent's aai
+#            aai.call(url)
+        elif msg.type == 'text' and msg.content == 'qq':
+            global AAI_CACHE
+            reply = create_reply('\n'.join(AAI_CACHE), msg)
+            AAI_CACHE = []
         else:
             reply = create_reply('Sorry, can not handle this for now', msg)
+        
         
 
         # Render
@@ -124,9 +150,15 @@ def process_voice(voice_url):
     logging.info("voice_url:%s" % voice_url)
     voice = bytearray(urllib.urlopen(voice_url).read())
     asr_client = AipSpeech(SPEECH_APPID, SPEECH_API_KEY, SPEECH_SECRET_KEY)
-    response = asr_client.asr(voice, 'amr', 8000)
-    return '\n'.join(response['result'])
+    response_zh = asr_client.asr(voice, 'amr', 8000)
+    response_en = asr_client.asr(voice, 'amr', 8000, { 'lan': 'en' })
+    return 'BaiduASR: ' + '\n'.join(response_zh['result'])  + '\n' + 'BaiduASR_en: ' +'\n'.join(response_en['result'])
     
+def process_voice_xf(voice_url):
+    import xfasr
+    response = xfasr.call(voice_url)
+    logging.info(response)
+    return 'Xunfei: ' + response[u'data'][u'result']
 
     
 def process_image(image_url):
